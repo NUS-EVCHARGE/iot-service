@@ -7,7 +7,7 @@
         {
           "name": "ev-iot-service-8080-tcp",
           "containerPort": 8080,
-          "hostPort": 8080,
+          "hostPort": 8081,
           "protocol": "tcp",
           "appProtocol": "http"
         }
