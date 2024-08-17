@@ -75,8 +75,8 @@
   "placementConstraints": [],
   "compatibilities": ["EC2"],
   "requiresCompatibilities": ["EC2"],
-  "cpu": "128",
-  "memory": "512",
+  "cpu": "256",
+  "memory": "256",
   "runtimePlatform": {
     "cpuArchitecture": "X86_64",
     "operatingSystemFamily": "LINUX"
