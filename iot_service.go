@@ -98,6 +98,11 @@ func getChargerStatus(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func getServiceHealthCheck(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode("service is up and running")
+}
+
 // communication with charging point
 func wsEndpoint(w http.ResponseWriter, r *http.Request) {
 	c, err := upgrader.Upgrade(w, r, nil)
@@ -166,6 +171,7 @@ func main() {
 	flag.Parse()
 	http.HandleFunc("/ws", wsEndpoint)
 	http.HandleFunc("/charger", getChargerStatus)
+	http.HandleFunc("/health", getServiceHealthCheck)
 
 	logrus.Info("serving_iot_service...")
 	err := http.ListenAndServe(*addr, nil)
