@@ -171,7 +171,7 @@ func main() {
 	flag.Parse()
 	http.HandleFunc("/ws", wsEndpoint)
 	http.HandleFunc("/charger", getChargerStatus)
-	http.HandleFunc("/health", getServiceHealthCheck)
+	http.HandleFunc("iot/health", getServiceHealthCheck)
 
 	logrus.Info("serving_iot_service...")
 	err := http.ListenAndServe(*addr, nil)
