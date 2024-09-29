@@ -28,7 +28,7 @@
         "logDriver": "awslogs",
         "options": {
           "awslogs-create-group": "true",
-          "awslogs-group": "/ecs/",
+          "awslogs-group": "/ecs/iot-service",
           "awslogs-region": "ap-southeast-1",
           "awslogs-stream-prefix": "ecs"
         },
