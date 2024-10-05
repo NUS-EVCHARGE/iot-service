@@ -73,6 +73,7 @@ func main() {
 	registerHandler()
 
 	// amended r.Run to r.RunTLS with additional arguments to implement https and wss
+	go r.Run(":9090")
 	if err := r.RunTLS(":443", tlsCert, tlsKey); err != nil {
 		logrus.WithField("error", err).Errorf("http server failed to start")
 	}
