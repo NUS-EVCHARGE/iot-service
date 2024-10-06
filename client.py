@@ -6,6 +6,10 @@ import random
 import json
 import ssl
 import pathlib
+import threading
+import time
+
+done = False
 
 #define message handling logic
 async def handle_message(message, ws):
@@ -31,27 +35,41 @@ rnum = round(10*random.random())
 # localhost_pem = pathlib.Path(__file__).with_name("key.pub")
 # ssl_context.load_cert_chain(localhost_pem)
 
+async def keepalive(ws):
+    print("launch keepalive")
+    while(True):
+        print("send keepalive")
+        event = {"command":"keepalive","charger_id":"60" }
+        print("sending keepalive")
+        await ws.send(json.dumps(event))
+        await asyncio.sleep(5)
+
+
 async def main():
     print("launching....")
 
-    async for ws in websockets.connect('ws://localhost:9090/api/v1/ws'):
+    async with websockets.connect('ws://localhost:9090/api/v1/ws') as ws:
     # async for ws in websockets.connect('wss://localhost:443/api/v1/ws', ssl=ssl_context):
    #ws = await AioClient.connect('ws://0.tcp.ap.ngrok.io:12476/ws') - use this address when running remotely on IOT client and update URI
+        x = asyncio.create_task(keepalive(ws))
 
         try:
             print("Connecting to server")
-            event = {"command":"register","company_id":"1","charger_id":"12135352","status":"available"}
-            await ws.send (json.dumps(event))
+            event = {"command":"register","company_id":"1","charger_id":"60","status":"available"}
+            await ws.send(json.dumps(event))
             
+
             # rest of the following logic is for arbitrary message testing only, not real business logic
             await asyncio.sleep(5)
             event["command"] = "start"
+            event["status"] = "charging"
             await ws.send(json.dumps(event))
 
             await asyncio.sleep(5)
             event["command"] = "stop"
+            event["status"] = "available"
             await ws.send(json.dumps(event))
-
+            done = True
             while True:
                 #data = input('> ')
                 
@@ -68,7 +86,7 @@ async def main():
 
         except (asyncio.CancelledError):
             print("keyboard interrupt or EOFError")      
-            event = {"command":"unregister","company_id":"1","charger_id":"12135352","status":"available"}
+            event = {"command":"unregister","company_id":"1","charger_id":"60","status":"available"}
             await ws.send (json.dumps(event))
             data = await ws.recv()
             print(f'< {data}')
@@ -87,6 +105,9 @@ async def main():
             # wait a while for random period before reconnecting, to avoid the charge points overloading server with reconnection requests
             await asyncio.sleep(rnum)
             print("Trying to connect...")   
+    
+    print("launching keepalive")
+    # x = asyncio.create_task(keepalive(ws))
 
 
 

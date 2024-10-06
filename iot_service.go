@@ -92,7 +92,6 @@ func registerHandler() {
 	{
 		v1.GET("/ws", handler.WsChargerEndpoint)
 		v1.GET("/charger/chargerstatus", handler.GetChargerEndpointStatus)
-		v1.POST("/charger/chargerstatus", handler.SetChargerEndpointStatus)
 
 		// additional API route for Terry's implementation of service health check
 		v1.GET("/iot/health", handler.GetServiceHealthCheck)
