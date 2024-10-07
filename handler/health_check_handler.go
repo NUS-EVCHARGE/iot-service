@@ -33,6 +33,10 @@ type IoTHubRequest struct {
 	Status      string `json:"status"`
 }
 
+type IoTHubResponse struct {
+	Status string `json:"status"`
+}
+
 type Instance struct {
 	conn             *websocket.Conn
 	ChargerId        string
@@ -77,7 +81,7 @@ func NewInstance(c *websocket.Conn, chargerId string) (*Instance, error) {
 			select {
 			case <-t.C:
 				logrus.WithField("time", instance.lastAccessedTime).WithField("time_since", time.Since(instance.lastAccessedTime).Seconds()).Info("keep_alive_checker")
-				if time.Since(instance.lastAccessedTime).Seconds() > 30 {
+				if time.Since(instance.lastAccessedTime).Seconds() > 120 {
 					instance.done <- true
 				}
 			case <-instance.done:
@@ -99,6 +103,14 @@ func GetChargerEndpointStatus(c *gin.Context) {
 	}
 	c.JSON(http.StatusNotFound, "charger not found")
 	return
+}
+
+func NewIoTResponse(status string) []byte {
+	var res = IoTHubResponse{
+		Status: status,
+	}
+	resbyte, _ := json.Marshal(res)
+	return resbyte
 }
 
 // communication with charging point
@@ -137,7 +149,7 @@ func WsChargerEndpoint(ginC *gin.Context) {
 			}
 			chargerIdMap[req.ChargerId] = instance
 
-			if err := c.WriteMessage(mt, []byte("instance register success")); err != nil {
+			if err := c.WriteMessage(mt, []byte(NewIoTResponse("available"))); err != nil {
 				logrus.WithField("err", err).Error("failed_to_write_message_to_client")
 			}
 			logrus.Info("register instance success")
@@ -145,7 +157,7 @@ func WsChargerEndpoint(ginC *gin.Context) {
 			if instance, ok := chargerIdMap[req.ChargerId]; ok {
 				instance.done <- true
 				delete(chargerIdMap, req.ChargerId)
-				if err := c.WriteMessage(mt, []byte("instance unregister success")); err != nil {
+				if err := c.WriteMessage(mt, []byte(NewIoTResponse("offline"))); err != nil {
 					logrus.WithField("err", err).Error("failed_to_write_message_to_client")
 				}
 				logrus.Info("unregister instance success")
@@ -156,13 +168,14 @@ func WsChargerEndpoint(ginC *gin.Context) {
 		case "keepalive":
 			if instance, ok := chargerIdMap[req.ChargerId]; !ok {
 				// break connection
-				if err := c.WriteMessage(mt, []byte("instance keepalive failed")); err != nil {
+				if err := c.WriteMessage(mt, []byte(NewIoTResponse("instance keep alive failed"))); err != nil {
 					logrus.WithField("err", err).Error("failed_to_write_message_to_client")
 					continue
 				}
 			} else {
 				instance.lastAccessedTime = time.Now()
-				if err := c.WriteMessage(mt, []byte("instance keepalive success")); err != nil {
+				instance.status = req.Status // updates status from keepalive
+				if err := c.WriteMessage(mt, []byte(NewIoTResponse(instance.status))); err != nil {
 					logrus.WithField("err", err).Error("failed_to_write_message_to_client")
 					continue
 				}
@@ -176,12 +189,12 @@ func WsChargerEndpoint(ginC *gin.Context) {
 				chargerIdMap[req.ChargerId] = instance
 
 				third_party.UpdateCharger(instance.ChargerDetails)
-				if err := c.WriteMessage(mt, []byte("instance status update success")); err != nil {
+				if err := c.WriteMessage(mt, []byte(NewIoTResponse(instance.status))); err != nil {
 					logrus.WithField("err", err).Error("failed_to_write_message_to_client")
 				}
 				logrus.WithField("status", instance.ChargerDetails.Status).Info("update instance success")
 			} else {
-				err := c.WriteMessage(mt, []byte("instance not registered"))
+				err := c.WriteMessage(mt, []byte(NewIoTResponse("instance not registered")))
 				logrus.WithField("err", err).Error("failed_to_write_message_to_client")
 			}
 

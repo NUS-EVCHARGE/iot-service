@@ -10,6 +10,8 @@ import threading
 import time
 
 done = False
+status = "pending"
+chargerId = "61"
 
 #define message handling logic
 async def handle_message(message, ws):
@@ -39,7 +41,7 @@ async def keepalive(ws):
     print("launch keepalive")
     while(True):
         print("send keepalive")
-        event = {"command":"keepalive","charger_id":"60" }
+        event = {"command":"keepalive","charger_id":chargerId, "status": status}
         print("sending keepalive")
         await ws.send(json.dumps(event))
         await asyncio.sleep(5)
@@ -47,6 +49,7 @@ async def keepalive(ws):
 
 async def main():
     print("launching....")
+    global status
 
     async with websockets.connect('ws://localhost:9090/api/v1/ws') as ws:
     # async for ws in websockets.connect('wss://localhost:443/api/v1/ws', ssl=ssl_context):
@@ -55,21 +58,23 @@ async def main():
 
         try:
             print("Connecting to server")
-            event = {"command":"register","company_id":"1","charger_id":"60","status":"available"}
+            event = {"command":"register","company_id":"1","charger_id":chargerId,"status":"available"}
             await ws.send(json.dumps(event))
             
 
             # rest of the following logic is for arbitrary message testing only, not real business logic
             await asyncio.sleep(5)
-            event["command"] = "start"
-            event["status"] = "charging"
+            event["command"] = "starting"
+            event["status"] = status
             await ws.send(json.dumps(event))
 
             await asyncio.sleep(5)
-            event["command"] = "stop"
+            event["command"] = "running"
             event["status"] = "available"
+            status = "available"
             await ws.send(json.dumps(event))
-            done = True
+
+
             while True:
                 #data = input('> ')
                 
@@ -78,6 +83,10 @@ async def main():
 
                 data = await ws.recv()
                 print(f'< {data}')
+                
+                obj = json.loads(data)
+                if obj["status"] != None:
+                    status = obj["status"]
 
                 # await handle_message(data, ws)
                 # print("client has handled the message")
@@ -86,7 +95,7 @@ async def main():
 
         except (asyncio.CancelledError):
             print("keyboard interrupt or EOFError")      
-            event = {"command":"unregister","company_id":"1","charger_id":"60","status":"available"}
+            event = {"command":"unregister","company_id":"1","charger_id":chargerId,"status":"available"}
             await ws.send (json.dumps(event))
             data = await ws.recv()
             print(f'< {data}')
