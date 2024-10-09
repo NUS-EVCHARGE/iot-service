@@ -73,7 +73,7 @@ func main() {
 	registerHandler()
 
 	// amended r.Run to r.RunTLS with additional arguments to implement https and wss
-	go r.Run(":9090")
+	go r.Run(":8080")
 	if err := r.RunTLS(":443", tlsCert, tlsKey); err != nil {
 		logrus.WithField("error", err).Errorf("http server failed to start")
 	}
@@ -92,6 +92,7 @@ func registerHandler() {
 	{
 		v1.GET("/ws", handler.WsChargerEndpoint)
 		v1.GET("/charger/chargerstatus", handler.GetChargerEndpointStatus)
+		v1.POST("/charger/chargerstatus", handler.UpdateIotStatus)
 
 		// additional API route for Terry's implementation of service health check
 		v1.GET("/iot/health", handler.GetServiceHealthCheck)

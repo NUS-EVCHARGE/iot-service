@@ -11,7 +11,7 @@ import time
 
 done = False
 status = "pending"
-chargerId = "61"
+chargerId = "59"
 
 #define message handling logic
 async def handle_message(message, ws):
@@ -58,7 +58,8 @@ async def main():
 
         try:
             print("Connecting to server")
-            event = {"command":"register","company_id":"1","charger_id":chargerId,"status":"available"}
+            status = "available"
+            event = {"command":"register","company_id":"1","charger_id":chargerId,"status":status}
             await ws.send(json.dumps(event))
             
 

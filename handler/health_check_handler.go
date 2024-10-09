@@ -57,7 +57,7 @@ const (
 	Error
 )
 
-func NewInstance(c *websocket.Conn, chargerId string) (*Instance, error) {
+func NewInstance(c *websocket.Conn, chargerId string, mt int) (*Instance, error) {
 	chargerIdInt, err := strconv.Atoi(chargerId)
 
 	if err != nil {
@@ -74,6 +74,7 @@ func NewInstance(c *websocket.Conn, chargerId string) (*Instance, error) {
 		ChargerDetails:   chargerDetails,
 		lastAccessedTime: time.Now(),
 		done:             make(chan bool, 1),
+		messageType:      mt,
 	}
 	go func() {
 		t := time.NewTicker(time.Second)
@@ -87,6 +88,9 @@ func NewInstance(c *websocket.Conn, chargerId string) (*Instance, error) {
 			case <-instance.done:
 				logrus.Info("keep_alive_expired")
 				delete(chargerIdMap, instance.ChargerId)
+				// update DB to update status to be offline
+				instance.ChargerDetails.Status = "offline"
+				third_party.UpdateCharger(instance.ChargerDetails)
 				return
 			}
 		}
@@ -103,6 +107,17 @@ func GetChargerEndpointStatus(c *gin.Context) {
 	}
 	c.JSON(http.StatusNotFound, "charger not found")
 	return
+}
+
+func UpdateIotStatus(c *gin.Context) {
+	chargerId := c.Query("charger_id")
+	status := c.Query("status")
+	if charger, ok := chargerIdMap[chargerId]; ok {
+		charger.conn.WriteMessage(charger.messageType, NewIoTResponse(status))
+		c.JSON(http.StatusOK, "update success")
+		return
+	}
+	c.JSON(http.StatusNotFound, "charger id not found")
 }
 
 func NewIoTResponse(status string) []byte {
@@ -142,7 +157,7 @@ func WsChargerEndpoint(ginC *gin.Context) {
 		switch req.Command {
 		case "register":
 
-			instance, err := NewInstance(c, req.ChargerId)
+			instance, err := NewInstance(c, req.ChargerId, mt)
 			if err != nil {
 				c.WriteMessage(mt, []byte(fmt.Sprintf("err creating intance: %v", err)))
 				continue
@@ -160,6 +175,9 @@ func WsChargerEndpoint(ginC *gin.Context) {
 				if err := c.WriteMessage(mt, []byte(NewIoTResponse("offline"))); err != nil {
 					logrus.WithField("err", err).Error("failed_to_write_message_to_client")
 				}
+				// todo: update hcarger
+				instance.ChargerDetails.Status = "offline"
+				third_party.UpdateCharger(instance.ChargerDetails)
 				logrus.Info("unregister instance success")
 
 			} else {
